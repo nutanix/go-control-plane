@@ -17,6 +17,9 @@ package resource
 
 import (
 	"fmt"
+
+	"k8s.io/apimachinery/pkg/labels"
+
 	"time"
 
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -30,6 +33,10 @@ import (
 	tcp "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	"github.com/envoyproxy/go-control-plane/pkg/util"
+
+	k8s "k8s.io/client-go/kubernetes"
+	k8sclient "k8s.io/client-go/rest"
+	k8smetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -54,7 +61,7 @@ var (
 )
 
 // MakeEndpoint creates a localhost endpoint on a given port.
-func MakeEndpoint(clusterName string, port uint32) *v2.ClusterLoadAssignment {
+func MakeEndpoint(clusterName string, host string, port uint32) *v2.ClusterLoadAssignment {
 	return &v2.ClusterLoadAssignment{
 		ClusterName: clusterName,
 		Endpoints: []endpoint.LocalityLbEndpoints{{
@@ -64,7 +71,7 @@ func MakeEndpoint(clusterName string, port uint32) *v2.ClusterLoadAssignment {
 						Address: &core.Address_SocketAddress{
 							SocketAddress: &core.SocketAddress{
 								Protocol: core.TCP,
-								Address:  localhost,
+								Address:  host,
 								PortSpecifier: &core.SocketAddress_PortValue{
 									PortValue: port,
 								},
@@ -301,7 +308,7 @@ func (ts TestSnapshot) Generate() cache.Snapshot {
 	for i := 0; i < ts.NumClusters; i++ {
 		name := fmt.Sprintf("cluster-%s-%d", ts.Version, i)
 		clusters[i] = MakeCluster(ts.Xds, name)
-		endpoints[i] = MakeEndpoint(name, ts.UpstreamPort)
+		endpoints[i] = MakeEndpoint(name, "localhost", ts.UpstreamPort)
 	}
 
 	routes := make([]cache.Resource, ts.NumHTTPListeners)
@@ -324,4 +331,73 @@ func (ts TestSnapshot) Generate() cache.Snapshot {
 	}
 
 	return cache.NewSnapshot(ts.Version, endpoints, clusters, routes, listeners)
+}
+
+type Config struct {
+	k8sApiHost string
+	clientCertFile string
+	clientKeyFile string
+	caCertFile string
+}
+
+func configureExternalClient(cfg Config) (*k8s.Clientset, error) {
+	config := &k8sclient.Config{
+		Host: cfg.k8sApiHost,
+		TLSClientConfig: k8sclient.TLSClientConfig{
+			CertFile: cfg.clientCertFile,
+			KeyFile:  cfg.clientKeyFile,
+			CAFile:   cfg.caCertFile,
+		},
+	}
+	return k8s.NewForConfig(config)
+}
+
+
+func (ts TestSnapshot) Generate2() cache.Snapshot {
+	clusters := make([]cache.Resource, 0)
+	endpoints := make([]cache.Resource, 0)
+	namespace := "default"
+	clusterNameLabel := "tbn_cluster"
+
+	cfg := Config{
+		k8sApiHost: "https://192.168.99.100:8443",
+		caCertFile: "/home/vsokolov/.minikube/ca.crt",
+		clientKeyFile: "/home/vsokolov/.minikube/client.key",
+		clientCertFile: "/home/vsokolov/.minikube/client.crt",
+	}
+
+	k8sClient, _ := configureExternalClient(cfg)
+	labelSelector := labels.NewSelector()
+
+	clientServices := k8sClient.Core().Services(namespace)
+
+	timeout := int64(1)
+	listOptions := k8smetav1.ListOptions{
+		LabelSelector:  labelSelector.String(),
+		TimeoutSeconds: &timeout,
+	}
+
+	list, _ := clientServices.List(listOptions)
+
+
+	clustersMap := map[string]*v2.Cluster{}
+	for _, service := range list.Items {
+		if len(service.Spec.ExternalIPs) > 0 {
+			clusterName := service.Labels[clusterNameLabel]
+
+			cluster := clustersMap[clusterName]
+			if cluster == nil {
+				cluster = MakeCluster(Xds, clusterName)
+				clustersMap[clusterName] = cluster
+				clusters = append(clusters, cluster)
+			}
+
+			for _, external_ip := range service.Spec.ExternalIPs {
+				for _, port := range service.Spec.Ports {
+					endpoints = append(endpoints, MakeEndpoint(clusterName, external_ip, uint32(port.Port)))
+				}
+			}
+		}
+	}
+	return cache.NewSnapshot(ts.Version, endpoints, clusters, make([]cache.Resource, 0), make([]cache.Resource, 0))
 }

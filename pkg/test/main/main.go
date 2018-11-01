@@ -19,9 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -65,7 +62,7 @@ func init() {
 	flag.DurationVar(&delay, "delay", 500*time.Millisecond, "Interval between request batch retries")
 	flag.IntVar(&requests, "r", 5, "Number of requests between snapshot updates")
 	flag.IntVar(&updates, "u", 3, "Number of snapshot updates")
-	flag.StringVar(&mode, "xds", resource.Ads, "Management server type (ads, xds, rest)")
+	flag.StringVar(&mode, "xds", resource.Xds, "Management server type (ads, xds, rest)")
 	flag.IntVar(&clusters, "clusters", 4, "Number of clusters")
 	flag.IntVar(&httpListeners, "http", 2, "Number of HTTP listeners (and RDS configs)")
 	flag.IntVar(&tcpListeners, "tcp", 2, "Number of TCP pass-through listeners")
@@ -80,15 +77,11 @@ func main() {
 	}
 	ctx := context.Background()
 
-	// start upstream
-	go test.RunHTTP(ctx, upstreamPort)
-
 	// create a cache
 	signal := make(chan struct{})
 	cb := &callbacks{signal: signal}
 	config := cache.NewSnapshotCache(mode == resource.Ads, test.Hasher{}, logger{})
 	srv := server.NewServer(config, cb)
-	als := &test.AccessLogService{}
 
 	// create a test snapshot
 	snapshots := resource.TestSnapshot{
@@ -100,101 +93,12 @@ func main() {
 		NumTCPListeners:  tcpListeners,
 	}
 
+	snapshots.Version = fmt.Sprintf("v%d", 0)
+	snapshot := snapshots.Generate2()
+	config.SetSnapshot(nodeID, snapshot)
+
 	// start the xDS server
-	go test.RunAccessLogServer(ctx, als, alsPort)
-	go test.RunManagementServer(ctx, srv, port)
-	go test.RunManagementGateway(ctx, srv, gatewayPort)
-
-	log.Infof("waiting for the first request...")
-	<-signal
-	log.Infof("initial snapshot %+v", snapshots)
-	log.WithFields(log.Fields{"updates": updates, "requests": requests}).Info("executing sequence")
-
-	for i := 0; i < updates; i++ {
-		snapshots.Version = fmt.Sprintf("v%d", i)
-		log.WithFields(log.Fields{"version": snapshots.Version}).Info("update snapshot")
-
-		snapshot := snapshots.Generate()
-		if err := snapshot.Consistent(); err != nil {
-			log.Errorf("snapshot inconsistency: %+v", snapshot)
-		}
-
-		err := config.SetSnapshot(nodeID, snapshot)
-		if err != nil {
-			log.Errorf("snapshot error %q for %+v", err, snapshot)
-			os.Exit(1)
-		}
-
-		// pass is true if all requests succeed at least once in a run
-		pass := false
-		for j := 0; j < requests; j++ {
-			ok, failed := callEcho()
-			if failed == 0 && !pass {
-				pass = true
-			}
-			log.WithFields(log.Fields{"batch": j, "ok": ok, "failed": failed, "pass": pass}).Info("request batch")
-			select {
-			case <-time.After(delay):
-			case <-ctx.Done():
-				return
-			}
-		}
-
-		als.Dump(func(s string) { log.Debug(s) })
-		cb.Report()
-
-		if !pass {
-			log.Errorf("failed all requests in a run %d", i)
-			os.Exit(1)
-		}
-	}
-
-	log.Infof("Test for %s passed!", mode)
-}
-
-// callEcho calls upstream echo service on all listener ports and returns an error
-// if any of the listeners returned an error.
-func callEcho() (int, int) {
-	total := httpListeners + tcpListeners
-	ok, failed := 0, 0
-	ch := make(chan error, total)
-
-	// spawn requests
-	for i := 0; i < total; i++ {
-		go func(i int) {
-			client := http.Client{
-				Timeout: 100 * time.Millisecond,
-			}
-			req, err := client.Get(fmt.Sprintf("http://localhost:%d", basePort+uint(i)))
-			if err != nil {
-				ch <- err
-				return
-			}
-			defer req.Body.Close()
-			body, err := ioutil.ReadAll(req.Body)
-			if err != nil {
-				ch <- err
-				return
-			}
-			if string(body) != test.Hello {
-				ch <- fmt.Errorf("unexpected return %q", string(body))
-				return
-			}
-			ch <- nil
-		}(i)
-	}
-
-	for {
-		out := <-ch
-		if out == nil {
-			ok++
-		} else {
-			failed++
-		}
-		if ok+failed == total {
-			return ok, failed
-		}
-	}
+	test.RunManagementServer(ctx, srv, port)
 }
 
 type logger struct{}
