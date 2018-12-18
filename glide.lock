@@ -1,8 +1,44 @@
-hash: b822b3a802107e4f825f218cd178bff9fd39a5d7e6fdf3f704cd2acd067ebee9
-updated: 2018-09-24T13:23:57.33690157-07:00
+hash: 9e41a74ba7beaa09a4c1893732f1da0109a6e25fa1a2b06a7d21c45b958932a9
+updated: 2018-12-18T00:16:10.82314-08:00
 imports:
 - name: github.com/envoyproxy/data-plane-api
   version: 911001cdca003337bdb93fab32740cde61bafee3
+- name: github.com/envoyproxy/go-control-plane
+  version: 7b403cf5db9547db2db5562a65454f9ae0dd4f4a
+  vcs: git
+  subpackages:
+  - .
+  - envoy/api/v2
+  - envoy/api/v2/auth
+  - envoy/api/v2/cluster
+  - envoy/api/v2/core
+  - envoy/api/v2/endpoint
+  - envoy/api/v2/listener
+  - envoy/api/v2/ratelimit
+  - envoy/api/v2/route
+  - envoy/config/accesslog/v2
+  - envoy/config/bootstrap/v2
+  - envoy/config/filter/accesslog/v2
+  - envoy/config/filter/fault/v2
+  - envoy/config/filter/network/http_connection_manager/v2
+  - envoy/config/filter/network/tcp_proxy/v2
+  - envoy/config/metrics/v2
+  - envoy/config/overload/v2alpha
+  - envoy/config/ratelimit/v2
+  - envoy/config/rbac/v2alpha
+  - envoy/config/trace/v2
+  - envoy/data/accesslog/v2
+  - envoy/service/accesslog/v2
+  - envoy/service/discovery/v2
+  - envoy/type
+  - envoy/type/matcher
+  - pkg
+  - pkg/cache
+  - pkg/log
+  - pkg/server
+  - pkg/test
+  - pkg/test/resource
+  - pkg/util
 - name: github.com/gogo/googleapis
   version: 0cd9801be74a10d5ac39d69626eac8255ffcd502
   subpackages:
