@@ -1,27 +1,105 @@
-package: github.com/envoyproxy/go-control-plane
+package: github.com/nutanix/go-control-plane
 import:
+- package: github.com/envoyproxy/data-plane-api
+  version: 911001cdca003337bdb93fab32740cde61bafee3
+- package: github.com/envoyproxy/go-control-plane
+  vcs: git
+  version: 7b403cf5db9547db2db5562a65454f9ae0dd4f4a
+  subpackages:
+  - .
+  - pkg
+- package: github.com/gogo/googleapis
+  version: 0cd9801be74a10d5ac39d69626eac8255ffcd502
+  subpackages:
+  - google/api
+  - google/rpc
 - package: github.com/gogo/protobuf
-  version: ^1.1.1
+  version: 636bf0302bc95575d69441b25a2603156ffdddf1
   subpackages:
+  - gogoproto
+  - jsonpb
+  - proto
+  - protoc-gen-gogo/descriptor
   - protoc-gen-gogofast
-- package: golang.org/x/net
+  - sortkeys
+  - types
+- package: github.com/golang/protobuf
+  version: ab9f9a6dab164b7d1246e0e688b0ab7b94d8553e
   subpackages:
-  - context
-- package: golang.org/x/sys
-  version: acbc56f
-  subpackages:
-  - unix
-- package: google.golang.org/genproto
-  subpackages:
-  - googleapis
-  - opencensus
-- package: google.golang.org/grpc
-  version: ^1.12.0
+  - proto
+  - protoc-gen-go/descriptor
+  - ptypes
+  - ptypes/any
+  - ptypes/duration
+  - ptypes/timestamp
 - package: github.com/lyft/protoc-gen-validate
   version: f9d2b11e44149635b23a002693b76512b01ae515
-- package: istio.io/gogo-genproto
-- package: github.com/gogo/googleapis
-- package: github.com/envoyproxy/data-plane-api
-  version: 4406edd4e29f5b7e254bdee75ef6354fdf756eb3
+  subpackages:
+  - validate
 - package: github.com/sirupsen/logrus
-  version: ^1.0.4
+  version: 3e01752db0189b9157070a0e1668a620f9a85da2
+- package: golang.org/x/crypto
+  version: 5119cf507ed5294cc409c092980c7497ee5d6fd2
+  subpackages:
+  - ssh/terminal
+- package: golang.org/x/net
+  version: 5ccada7d0a7ba9aeb5d3aca8d3501b4c2a509fec
+  subpackages:
+  - context
+  - http2
+  - http2/hpack
+  - idna
+  - internal/timeseries
+  - lex/httplex
+  - trace
+- package: golang.org/x/sys
+  version: acbc56fc7007d2a01796d5bde54f39e3b3e95945
+  subpackages:
+  - unix
+  - windows
+- package: golang.org/x/text
+  version: e19ae1496984b1c655b8044a65c0300a3c878dd3
+  subpackages:
+  - secure/bidirule
+  - transform
+  - unicode/bidi
+  - unicode/norm
+- package: google.golang.org/genproto
+  version: a8101f21cf983e773d0c1133ebc5424792003214
+  subpackages:
+  - googleapis
+  - googleapis/rpc/status
+  - opencensus
+- package: google.golang.org/grpc
+  version: 8dea3dc473e90c8179e519d91302d0597c0ca1d1
+  subpackages:
+  - balancer
+  - balancer/base
+  - balancer/roundrobin
+  - codes
+  - connectivity
+  - credentials
+  - encoding
+  - encoding/proto
+  - grpclog
+  - internal
+  - internal/backoff
+  - internal/channelz
+  - internal/envconfig
+  - internal/grpcrand
+  - internal/transport
+  - keepalive
+  - metadata
+  - naming
+  - peer
+  - resolver
+  - resolver/dns
+  - resolver/passthrough
+  - stats
+  - status
+  - tap
+- package: istio.io/gogo-genproto
+  version: dd2b5b6a8f1400838165245e704a011a30154a44
+  subpackages:
+  - opencensus/proto/trace
+  - prometheus
