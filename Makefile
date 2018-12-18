@@ -156,3 +156,14 @@ $(BINDIR)/gogofast: vendor
 $(BINDIR)/validate: vendor
 	@echo "--> building $@"
 	@go build -o $@ vendor/github.com/lyft/protoc-gen-validate/main.go
+
+#-----------------
+#-- producer
+#-----------------
+.PHONY: $(BINDIR)/producer producer
+
+$(BINDIR)/producer: vendor
+	@echo "--> building producer binary"
+	@go build -race -o $@ pkg/producer/main/main.go
+
+producer: $(BINDIR)/producer
