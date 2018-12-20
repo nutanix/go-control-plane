@@ -65,7 +65,7 @@ func (clusterCfg *ClusterConfig) MakeCluster() *v2.Cluster {
 
 	return &v2.Cluster{
 		Name:           clusterCfg.ClusterName,
-		ConnectTimeout: clusterCfg.ConnectTimeout,
+		ConnectTimeout: 2 * time.Second,
 		Type:           v2.Cluster_EDS,
 		LbPolicy:       v2.Cluster_ROUND_ROBIN,
 		LbSubsetConfig: &v2.Cluster_LbSubsetConfig{

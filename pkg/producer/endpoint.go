@@ -57,7 +57,7 @@ type ClusterLoadAssignment struct {
 func (cla *ClusterLoadAssignment) MakeClusterLoadAssignment() *v2.ClusterLoadAssignment {
 	endpointCfgs := cla.EndpointConfigs
 	lbEndpoints := make([]endpoint.LbEndpoint, len(endpointCfgs))
-	for _, endpointCfg := range endpointCfgs {
+	for idx, endpointCfg := range endpointCfgs {
 		if endpointCfg.SocketAddress == "" ||
 			endpointCfg.SocketPort == 0 {
 			// Invalid endpoint config struct
@@ -65,18 +65,20 @@ func (cla *ClusterLoadAssignment) MakeClusterLoadAssignment() *v2.ClusterLoadAss
 			return nil
 		}
 
+		filterMetadata := make(map[string]*types.Struct)
 		subsetLBFields := make(map[string]*types.Value)
+		reverseConnFields := make(map[string]*types.Value)
 		if len(endpointCfg.SubsetLBMap) != 0 {
 			for key, val := range endpointCfg.SubsetLBMap {
 				subsetLBFields[key] = &types.Value{Kind: &types.Value_StringValue{StringValue: val}}
 			}
+			filterMetadata["envoy.lb"] = &types.Struct{Fields: subsetLBFields}
 		}
-
-		reverseConnFields := make(map[string]*types.Value)
 		if len(endpointCfg.RCMetadataMap) != 0 {
 			for key, val := range endpointCfg.RCMetadataMap {
 				reverseConnFields[key] = &types.Value{Kind: &types.Value_StringValue{StringValue: val}}
 			}
+			filterMetadata["envoy.reverse_conn"] = &types.Struct{Fields: reverseConnFields}
 		}
 
 		endpoint := endpoint.LbEndpoint{
@@ -101,7 +103,7 @@ func (cla *ClusterLoadAssignment) MakeClusterLoadAssignment() *v2.ClusterLoadAss
 			},
 		}
 
-		lbEndpoints = append(lbEndpoints, endpoint)
+		lbEndpoints[idx] = endpoint
 
 	}
 
