@@ -51,6 +51,8 @@ var (
 	tcpListeners  int
 
 	nodeID string
+
+	xdsCluster string
 )
 
 func init() {
@@ -64,41 +66,67 @@ func init() {
 	flag.IntVar(&httpListeners, "http", 2, "Number of HTTP listeners (and RDS configs)")
 	flag.IntVar(&tcpListeners, "tcp", 2, "Number of TCP pass-through listeners")
 	flag.StringVar(&nodeID, "nodeID", "test-id", "Node ID")
+	flag.StringVar(&xdsCluster, "xdsCluster", "xds_cluster", "Name of the xDS cluster")
 }
 
 // GenerateConfig creates a configuration for sending via xDS
 func GenerateConfig(version string) cache.Snapshot {
-	clusters := make([]cache.Resource, 1)
-	endpoints := make([]cache.Resource, 1)
+	clusters := make([]cache.Resource, 0)
+	endpoints := make([]cache.Resource, 0)
+	routes := make([]cache.Resource, 0)
+	listeners := make([]cache.Resource, 0)
 
 	// Create a cluster
 	clusterName := fmt.Sprintf("cluster-%s", version)
-	clusterDef := producer.ClusterConfig{ClusterName: clusterName, SubsetSelectorKeys: []string{"node_id"}}
-	clusters[0] = clusterDef.MakeCluster()
+	clusterDef := producer.ClusterConfig{
+		ClusterName:        clusterName,
+		EdsClusterName:     xdsCluster,
+		SubsetSelectorKeys: []string{"node_id"},
+	}
+	clusters = append(clusters, clusterDef.MakeCluster())
 
-	// Create an endpoint for the cluster on localhost:upstreamPort
-	endpointDef := producer.EndpointConfig{
-		ClusterName:   clusterName,
-		SocketAddress: "127.0.0.1",
-		SocketPort:    uint32(upstreamPort),
-		SubsetLBMap: map[string]string{
-			"node_id": "node0",
+	// Create endpoints for a given cluster
+	// Two endpoints are created:
+	// ep1: localhost:upstreamPort with node_id: node0
+	// ep2: localhost:upstreamPort+1 with node_id: node1
+	clusterLoadAssignment := producer.ClusterLoadAssignment{
+		ClusterName: clusterName,
+		EndpointConfigs: []*producer.EndpointConfig{
+			&producer.EndpointConfig{
+				SocketAddress: "127.0.0.1",
+				SocketPort:    uint32(upstreamPort),
+				SubsetLBMap: map[string]string{
+					"node_id": "node0",
+				},
+			},
+			&producer.EndpointConfig{
+				SocketAddress: "127.0.0.1",
+				SocketPort:    uint32(upstreamPort) + 1,
+				SubsetLBMap: map[string]string{
+					"node_id": "node1",
+				},
+			},
 		},
 	}
-	endpoints[0] = endpointDef.MakeEndpoint()
+	endpoints = append(endpoints, clusterLoadAssignment.MakeClusterLoadAssignment())
 
-	// Createa a route to the aforementioned cluster
-	routes := make([]cache.Resource, 1)
+	// Create a route
 	routeName := fmt.Sprintf("route-%s", version)
-	routeDef := producer.RouteConfig{RouteName: routeName, Cluster: clusterName, IsClusterHeader: false, RoutePrefix: "/"}
-	routes[0] = routeDef.MakeRoute()
-	//routes[0] = producer.MakeRoute(routeName, clusterName, false /*Is cluster header*/, "/")
+	routeDef := producer.RouteConfig{
+		RouteName: routeName,
+		Cluster:   clusterName,
+	}
+	routes = append(routes, routeDef.MakeRoute())
 
-	// Create a HTTP listener to access envoy
-	listeners := make([]cache.Resource, 1)
+	// Create a HTTP listener
 	httpListenerName := fmt.Sprintf("listener-%d", basePort)
-	httpListenerDef := producer.HTTPListenerConfig{ListenerName: httpListenerName, ListenerPort: uint32(basePort), RouteName: routeName}
-	listeners[0] = httpListenerDef.MakeHTTPListener()
+	httpListenerDef := producer.HTTPListenerConfig{
+		ListenerName:   httpListenerName,
+		ListenerPort:   uint32(basePort),
+		RouteName:      routeName,
+		LdsClusterName: xdsCluster,
+	}
+	listeners = append(listeners, httpListenerDef.MakeHTTPListener())
 
 	// Create a snapshot of the above config
 	return cache.NewSnapshot(version, endpoints, clusters, routes, listeners)
@@ -149,9 +177,9 @@ func main() {
 	}
 
 	if pass == true {
-		log.Infof("Test for %s passed!")
+		log.Infof("Test passed!")
 	} else {
-		log.Infof("Test for %s failed!")
+		log.Infof("Test failed!")
 	}
 }
 
