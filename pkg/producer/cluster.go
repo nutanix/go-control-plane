@@ -5,6 +5,7 @@
 package producer
 
 import (
+	"log"
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -43,6 +44,7 @@ func (clusterCfg *ClusterConfig) validateStruct() bool {
 // MakeCluster creates a cluster using config seeded by ClusterConfig
 func (clusterCfg *ClusterConfig) MakeCluster() *v2.Cluster {
 	if ok := clusterCfg.validateStruct(); !ok {
+		log.Fatal("Could not validate ClusterConfig struct!")
 		return nil
 	}
 

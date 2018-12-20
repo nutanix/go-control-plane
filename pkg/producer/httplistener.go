@@ -1,6 +1,8 @@
 package producer
 
 import (
+	"log"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
@@ -58,6 +60,7 @@ func (httpListenerCfg *HTTPListenerConfig) validateStruct() bool {
 // MakeHTTPListener creates a listener using either ADS or RDS for the route.
 func (httpListenerCfg *HTTPListenerConfig) MakeHTTPListener() *v2.Listener {
 	if ok := httpListenerCfg.validateStruct(); !ok {
+		log.Fatal("Could not validate HTTPListenerConfig struct!")
 		return nil
 	}
 	// #TODO(utkarsh.simha) Add TLS context

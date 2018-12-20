@@ -5,6 +5,8 @@
 package producer
 
 import (
+	"log"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
@@ -18,9 +20,6 @@ type EndpointConfig struct {
 
 	// IP address of the endpoint socket
 	SocketAddress string
-
-	// Port number of the endpoint socket
-	SocketPort uint32
 
 	// Subset load balancer key value map
 	// Note: ensure keys are present in the subset selector keys provided to
@@ -62,6 +61,7 @@ func (cla *ClusterLoadAssignment) MakeClusterLoadAssignment() *v2.ClusterLoadAss
 		if endpointCfg.SocketAddress == "" ||
 			endpointCfg.SocketPort == 0 {
 			// Invalid endpoint config struct
+			log.Fatal("Could not validate ClusterConfig struct!")
 			return nil
 		}
 

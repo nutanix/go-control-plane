@@ -1,6 +1,8 @@
 package producer
 
 import (
+	"log"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 )
@@ -40,6 +42,7 @@ func (routeCfg *RouteConfig) validateStruct() bool {
 // MakeRoute creates an HTTP route that routes to a given cluster.
 func (routeCfg *RouteConfig) MakeRoute() *v2.RouteConfiguration {
 	if ok := routeCfg.validateStruct(); !ok {
+		log.Fatal("Could not validate RouteConfig struct!")
 		return nil
 	}
 
